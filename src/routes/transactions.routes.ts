@@ -1,33 +1,31 @@
-import { Router } from 'express';
-import { getCustomRepository } from 'typeorm';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import uploadConfig from '../config/upload';
-
+import { getCustomRepository } from 'typeorm';
 import TransactionsRepository from '../repositories/TransactionsRepository';
 import CreateTransactionService from '../services/CreateTransactionService';
-import DeleteTransactionService from '../services/DeleteTransactionService';
 import ImportTransactionsService from '../services/ImportTransactionsService';
+import uploadConfig from '../config/upload';
 
 const transactionsRouter = Router();
+
 const upload = multer(uploadConfig);
 
-transactionsRouter.get('/', async (request, response) => {
-  const transactionsRepositories = getCustomRepository(TransactionsRepository);
+transactionsRouter.get('/', async (request: Request, response: Response) => {
+  const transactionsRepository = getCustomRepository(TransactionsRepository);
 
-  const transactions = await transactionsRepositories.find({
-    select: ['id', 'title', 'value', 'type', 'category', 'created_at'],
-    relations: ['category'],
-  });
+  const transactions = await transactionsRepository.find();
 
-  const balance = await transactionsRepositories.getBalance();
+  const balance = await transactionsRepository.getBalance();
+
   return response.json({ transactions, balance });
 });
 
-transactionsRouter.post('/', async (request, response) => {
+transactionsRouter.post('/', async (request: Request, response: Response) => {
   const { title, value, type, category } = request.body;
 
-  const createTransationService = new CreateTransactionService();
-  const transaction = await createTransationService.execute({
+  const createTransactionService = new CreateTransactionService();
+
+  const transaction = await createTransactionService.execute({
     title,
     value,
     type,
@@ -37,23 +35,27 @@ transactionsRouter.post('/', async (request, response) => {
   return response.json(transaction);
 });
 
-transactionsRouter.delete('/:id', async (request, response) => {
-  const { id } = request.params;
+transactionsRouter.delete(
+  '/:id',
+  async (request: Request, response: Response) => {
+    const { id } = request.params;
 
-  const deleteTransactionService = new DeleteTransactionService();
+    const transactionsRepository = getCustomRepository(TransactionsRepository);
 
-  await deleteTransactionService.execute({ id });
+    transactionsRepository.delete(id);
 
-  return response.status(200).send();
-});
+    return response.status(204).send();
+  },
+);
 
 transactionsRouter.post(
   '/import',
   upload.single('file'),
-  async (request, response) => {
+  async (request: Request, response: Response) => {
     const importTransactionsService = new ImportTransactionsService();
+
     const transactions = await importTransactionsService.execute({
-      csvFile: request.file.filename,
+      buffer: request.file.buffer,
     });
 
     return response.json(transactions);

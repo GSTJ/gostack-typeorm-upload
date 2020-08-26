@@ -14,11 +14,10 @@ class Category {
   @Column()
   title: string;
 
-  @CreateDateColumn({ select: false })
+  @CreateDateColumn()
   created_at: Date;
 
-  @Column({ select: false })
-  @UpdateDateColumn({ select: false })
+  @UpdateDateColumn()
   updated_at: Date;
 }
 

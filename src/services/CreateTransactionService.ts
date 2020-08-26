@@ -1,13 +1,14 @@
 import { getCustomRepository, getRepository } from 'typeorm';
 import AppError from '../errors/AppError';
-import TransactionsRepository from '../repositories/TransactionsRepository';
+
 import Transaction from '../models/Transaction';
+import TransactionsRepository from '../repositories/TransactionsRepository';
 import Category from '../models/Category';
 
 interface Request {
   title: string;
-  value: number;
   type: 'income' | 'outcome';
+  value: number;
   category: string;
 }
 
@@ -18,45 +19,44 @@ class CreateTransactionService {
     type,
     category,
   }: Request): Promise<Transaction> {
-    const transactionsRepository = getCustomRepository(TransactionsRepository);
+    const transactionRepository = getCustomRepository(TransactionsRepository);
 
-    if (type === 'outcome') {
-      const { total } = await transactionsRepository.getBalance();
-      if (value > total)
-        throw new AppError(
-          'not be able to create outcome transaction without a valid balance',
-          400,
-        );
+    const balance = await transactionRepository.getBalance();
+
+    if (type === 'outcome' && balance.total < value) {
+      throw new AppError('Insufficient balance for transaction.');
     }
 
-    const categoryRepository = getRepository(Category);
+    const category_id = await this.resolveCategory(category);
 
-    const categoryExistsWithTitle = await categoryRepository.findOne({
-      where: { title: category },
-    });
-
-    let categoryCreated = null;
-
-    if (!categoryExistsWithTitle) {
-      categoryCreated = categoryRepository.create({
-        title: category,
-      });
-
-      await categoryRepository.save(categoryCreated);
-    }
-
-    const transaction = transactionsRepository.create({
+    const transaction = transactionRepository.create({
       title,
       value,
       type,
-      category_id:
-        (categoryExistsWithTitle && categoryExistsWithTitle.id) ||
-        categoryCreated?.id,
+      category_id,
     });
 
-    await transactionsRepository.save(transaction);
+    await transactionRepository.save(transaction);
 
     return transaction;
+  }
+
+  private async resolveCategory(category_title: string): Promise<string> {
+    const categoriesRepository = getRepository(Category);
+
+    let categoryModel = await categoriesRepository.findOne({
+      where: { title: category_title },
+    });
+
+    if (!categoryModel) {
+      const newCategory = categoriesRepository.create({
+        title: category_title,
+      });
+
+      categoryModel = await categoriesRepository.save(newCategory);
+    }
+
+    return categoryModel.id;
   }
 }
 

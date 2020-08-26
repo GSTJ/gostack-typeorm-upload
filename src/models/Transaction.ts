@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import {
   Entity,
   Column,
@@ -7,7 +8,6 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-
 import Category from './Category';
 
 @Entity('transactions')
@@ -24,17 +24,14 @@ class Transaction {
   @Column()
   value: number;
 
-  @Column()
-  category_id: string;
-
   @ManyToOne(() => Category)
   @JoinColumn({ name: 'category_id' })
-  category: Category;
+  category_id: string;
 
-  @CreateDateColumn({ select: false })
+  @CreateDateColumn()
   created_at: Date;
 
-  @UpdateDateColumn({ select: false })
+  @UpdateDateColumn()
   updated_at: Date;
 }
 
